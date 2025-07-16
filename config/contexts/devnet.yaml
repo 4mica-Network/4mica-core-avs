@@ -24,7 +24,11 @@ context:
     schedule: "0 */2 * * *"
     private_key: "0x5f8e6420b9cb0c940e3d3f8b99177980785906d16fb3571f70d7a05ecf5f2172"
     bls_private_key: "0x5f8e6420b9cb0c940e3d3f8b99177980785906d16fb3571f70d7a05ecf5f2172"
-    active_stake_roots: []
+    active_stake_roots:
+      - chain_id: 31338
+        stake_root: 0x2adf40e80a8a2bfe4d7d0c6e057afda089a6955e8fb4287b410cf687547935af
+      - chain_id: 31337
+        stake_root: 0x2adf40e80a8a2bfe4d7d0c6e057afda089a6955e8fb4287b410cf687547935af
   # All key material (BLS and ECDSA) within this file should be used for local testing ONLY
   # ECDSA keys used are from Anvil's private key set
   # BLS keystores are deterministically pre-generated and embedded. These are NOT derived from a secure seed
@@ -75,7 +79,7 @@ context:
           name: "stETH_Strategy"
           # Only allocate if these operator set IDs exist in the deployed operator_sets 
           operator_set_allocations:
-            - operator_set: "0" 
+            - operator_set: "0"
               allocation_in_wads: "500000000000000000" # 5e17 i.e 50% of max allocation
             - operator_set: "1"
               allocation_in_wads: "500000000000000000" # 5e17 i.e 50% of max allocation
@@ -119,13 +123,54 @@ context:
       operator_table_updater: "0xE12C4cebd680a917271145eDbFB091B1BdEFD74D"
       ecdsa_certificate_verifier: "0xAD2F58A551bD0e77fa20b5531dA96eF440C392BF"
   # L1 Contracts deployed on `devnet start`
-  deployed_l1_contracts: []
+  deployed_l1_contracts:
+    - abi: .devkit/contracts/out/ProxyAdmin.sol/ProxyAdmin.json
+      address: 0x93A4C111B04afF68926E18c1be17Ec77F8825445
+      name: l1ProxyAdmin
+    - abi: .devkit/contracts/out/TaskAVSRegistrar.sol/TaskAVSRegistrar.json
+      address: 0x0A221bF1F93CB4b569499966F08b03B3AAE1B50e
+      name: taskAVSRegistrar
+    - abi: .devkit/contracts/out/TaskAVSRegistrar.sol/TaskAVSRegistrar.json
+      address: 0xe4421D5ee82bCE001166706f9fff8A90a6cCbb13
+      name: taskAVSRegistrarImpl
+    - abi: .devkit/contracts/out/HelloWorldL1.sol/HelloWorldL1.json
+      address: 0xf6f8893e08608B286220C674877Cc7fF2B9a9098
+      name: HelloWorldL1
   # L2 Contracts deployed on `devnet start`
-  deployed_l2_contracts: []
+  deployed_l2_contracts:
+    - abi: .devkit/contracts/out/ProxyAdmin.sol/ProxyAdmin.json
+      address: 0x70f52D28abe4a0892e3daED979C735023Af7d3f5
+      name: l2ProxyAdmin
+    - abi: .devkit/contracts/out/TaskMailbox.sol/TaskMailbox.json
+      address: 0x7d77360666066967579a2235332d271587cd62dC
+      name: taskMailbox
+    - abi: .devkit/contracts/out/TaskMailbox.sol/TaskMailbox.json
+      address: 0x3D92C115496437b9Ae8eCd49324004a320AF8907
+      name: taskMailboxImpl
+    - abi: .devkit/contracts/out/AVSTaskHook.sol/AVSTaskHook.json
+      address: 0xD83D86Bbd1D4d7aAA67cB46dd45922eF947f089c
+      name: avsTaskHook
+    - abi: .devkit/contracts/out/HelloWorldL2.sol/HelloWorldL2.json
+      address: 0x7fa010d7617a479A979748397c9027F0a4D6c11f
+      name: HelloWorldL2
   # Operator Sets registered on `devnet start`
-  operator_sets: []
+  operator_sets:
+    - curve_type: BN254
+      operator_set_id: 0
+      strategies:
+        - strategy: 0x8b29d91e67b013e855EaFe0ad704aC4Ab086a574
+    - curve_type: BN254
+      operator_set_id: 1
+      strategies:
+        - strategy: 0x8b29d91e67b013e855EaFe0ad704aC4Ab086a574
   # Operators registered on `devnet start`
-  operator_registrations: []
+  operator_registrations:
+    - address: 0x90F79bf6EB2c4f870365E785982E1f101E93b906
+      operator_set_id: 0
+      payload: 0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000f61676772656761746f723a393030300000000000000000000000000000000000
+    - address: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+      operator_set_id: 1
+      payload: 0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d6578656375746f723a3930393000000000000000000000000000000000000000
   # Release artifact
   artifact:
     artifactId: ""
