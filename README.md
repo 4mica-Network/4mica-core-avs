@@ -807,3 +807,4 @@ To release a new version of the CLI, follow the steps below:
 
 4. This will automatically start the release process in the [GitHub Actions](https://github.com/Layr-Labs/eigenlayer-cli/actions/workflows/release.yml) and will create a draft release to the [GitHub Releases](https://github.com/Layr-Labs/eigenlayer-cli/releases) with all the required binaries and assets
 5. Check the release notes and add any notable changes and publish the release
+# 4mica-core-avs
