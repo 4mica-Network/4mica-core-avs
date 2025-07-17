@@ -13,26 +13,39 @@ import (
 	"go.uber.org/zap"
 )
 
+// Shared ABI JSON and method name for tests
+const (
+	testABIJSON = `[{"name":"dummy","type":"function","inputs":[{"type":"bytes32"}]}]`
+	testMethod  = "dummy"
+)
+
 // Setup shared logger and worker for tests
 func newTestWorker(t *testing.T) *TaskWorker {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	return NewTaskWorker(logger)
+
+	worker, err := NewTaskWorker(logger, TaskWorkerConfig{
+		ABIJSON: testABIJSON,
+		Method:  testMethod,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create TaskWorker: %v", err)
+	}
+	return worker
 }
 
 func TestValidateTask_ValidPayload(t *testing.T) {
 	taskWorker := newTestWorker(t)
 
-	const abiJSON = `[{"name":"dummy","type":"function","inputs":[{"type":"bytes32"}]}]`
-	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
+	parsedABI, err := abi.JSON(strings.NewReader(testABIJSON))
 	if err != nil {
 		t.Fatalf("Failed to parse ABI: %v", err)
 	}
 
 	txHash := common.HexToHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
-	packed, err := parsedABI.Pack("dummy", txHash)
+	packed, err := parsedABI.Pack(testMethod, txHash)
 	if err != nil {
 		t.Fatalf("Failed to pack ABI args: %v", err)
 	}
@@ -76,14 +89,16 @@ func TestValidateTask_ShortPayload(t *testing.T) {
 }
 
 func TestValidateTask_WrongInputType(t *testing.T) {
-	taskWorker := newTestWorker(t)
-
-	const abiJSON = `[{"name":"dummy","type":"function","inputs":[{"type":"uint256"}]}]`
-	wrongABI, err := abi.JSON(strings.NewReader(abiJSON))
+	logger, _ := zap.NewDevelopment()
+	wrongWorker, err := NewTaskWorker(logger, TaskWorkerConfig{
+		ABIJSON: `[{"name":"dummy","type":"function","inputs":[{"type":"uint256"}]}]`,
+		Method:  "dummy",
+	})
 	if err != nil {
-		t.Fatalf("Failed to parse ABI: %v", err)
+		t.Fatalf("Failed to create wrong-type TaskWorker: %v", err)
 	}
 
+	wrongABI, _ := abi.JSON(strings.NewReader(`[{"name":"dummy","type":"function","inputs":[{"type":"uint256"}]}]`))
 	bigIntValue := big.NewInt(123)
 	packed, err := wrongABI.Pack("dummy", bigIntValue)
 	if err != nil {
@@ -96,20 +111,23 @@ func TestValidateTask_WrongInputType(t *testing.T) {
 		Metadata: nil,
 	}
 
-	err = taskWorker.ValidateTask(taskRequest)
+	err = wrongWorker.ValidateTask(taskRequest)
 	if err == nil {
 		t.Error("Expected validation error for wrong input type, got nil")
 	}
 }
-func TestValidateTask_ExtraArguments(t *testing.T) {
-	taskWorker := newTestWorker(t)
 
-	const abiJSON = `[{"name":"dummy","type":"function","inputs":[{"type":"bytes32"},{"type":"bytes32"}]}]`
-	multiABI, err := abi.JSON(strings.NewReader(abiJSON))
+func TestValidateTask_ExtraArguments(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	worker, err := NewTaskWorker(logger, TaskWorkerConfig{
+		ABIJSON: `[{"name":"dummy","type":"function","inputs":[{"type":"bytes32"},{"type":"bytes32"}]}]`,
+		Method:  "dummy",
+	})
 	if err != nil {
-		t.Fatalf("Failed to parse ABI: %v", err)
+		t.Fatalf("Failed to create extra-arg TaskWorker: %v", err)
 	}
 
+	multiABI, _ := abi.JSON(strings.NewReader(`[{"name":"dummy","type":"function","inputs":[{"type":"bytes32"},{"type":"bytes32"}]}]`))
 	txHash1 := common.HexToHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 	txHash2 := common.HexToHash("0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd")
 
@@ -124,7 +142,7 @@ func TestValidateTask_ExtraArguments(t *testing.T) {
 		Metadata: nil,
 	}
 
-	err = taskWorker.ValidateTask(taskRequest)
+	err = worker.ValidateTask(taskRequest)
 	if err == nil {
 		t.Error("Expected validation error for extra argument, got nil")
 	}

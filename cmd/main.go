@@ -14,54 +14,61 @@ import (
 	"go.uber.org/zap"
 )
 
-// This offchain binary is run by Operators running the Hourglass Executor. It contains
-// the business logic of the AVS and performs worked based on the tasked sent to it.
-// The Hourglass Aggregator ingests tasks from the TaskMailbox and distributes work
-// to Executors configured to run the AVS Performer. Performers execute the work and
-// return the result to the Executor where the result is signed and return to the
-// Aggregator to place in the outbox once the signing threshold is met.
+const (
+	defaultPort    = 8080
+	defaultTimeout = 5 * time.Second
+
+	dummyABIJSON = `[{"name":"dummy","type":"function","inputs":[{"name":"txHash","type":"bytes32"}]}]`
+)
+
+type TaskWorkerConfig struct {
+	ABIJSON string
+	Method  string
+}
 
 type TaskWorker struct {
 	logger *zap.Logger
+	abi    abi.ABI
+	method abi.Method
 }
 
-func NewTaskWorker(logger *zap.Logger) *TaskWorker {
+func NewTaskWorker(logger *zap.Logger, cfg TaskWorkerConfig) (*TaskWorker, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(cfg.ABIJSON))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ABI: %w", err)
+	}
+
+	method, ok := parsedABI.Methods[cfg.Method]
+	if !ok {
+		return nil, fmt.Errorf("ABI method %q not found", cfg.Method)
+	}
+
 	return &TaskWorker{
 		logger: logger,
-	}
+		abi:    parsedABI,
+		method: method,
+	}, nil
 }
 
 func (tw *TaskWorker) ValidateTask(t *performerV1.TaskRequest) error {
-	tw.logger.Sugar().Infow("Validating task",
-		zap.Any("task", t),
-	)
+	tw.logger.Sugar().Infow("Validating task", zap.ByteString("task_id", t.TaskId))
 
-	const abiJSON = `[{"name":"dummy","type":"function","inputs":[{"name":"txHash","type":"bytes32"}]}]`
-	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
-	if err != nil {
-		return fmt.Errorf("failed to parse ABI: %w", err)
+	if len(t.Payload) < 4 {
+		return fmt.Errorf("payload too short to contain method selector")
 	}
 
-	method, ok := parsedABI.Methods["dummy"]
-	if !ok {
-		return fmt.Errorf("ABI method 'dummy' not found")
-	}
-
-	expectedSelector := method.ID
-	if len(t.Payload) < 4 || !strings.HasPrefix(hex.EncodeToString(t.Payload[:4]), hex.EncodeToString(expectedSelector)) {
+	if !equalBytes(t.Payload[:4], tw.method.ID) {
 		return fmt.Errorf("invalid method selector")
 	}
 
 	encodedArgs := t.Payload[4:]
 
-	// Validate length
-	dummyInput := [32]byte{}
-	expectedArgEncoding, _ := method.Inputs.Pack(dummyInput)
+	expectedArgEncoding, _ := tw.method.Inputs.Pack([32]byte{})
 	if len(encodedArgs) != len(expectedArgEncoding) {
 		return fmt.Errorf("unexpected argument length: got %d, want %d", len(encodedArgs), len(expectedArgEncoding))
 	}
 
-	args, err := method.Inputs.Unpack(encodedArgs)
+	args, err := tw.method.Inputs.Unpack(encodedArgs)
 	if err != nil {
 		return fmt.Errorf("failed to unpack arguments: %w", err)
 	}
@@ -79,33 +86,16 @@ func (tw *TaskWorker) ValidateTask(t *performerV1.TaskRequest) error {
 
 func (tw *TaskWorker) HandleTask(t *performerV1.TaskRequest) (*performerV1.TaskResponse, error) {
 	tw.logger.Sugar().Infow("Handling task",
-		zap.Any("task_id", t.TaskId),
+		zap.ByteString("task_id", t.TaskId),
 		zap.Binary("payload", t.Payload),
 	)
 
-	// ABI definition: dummy(bytes32)
-	const abiJSON = `[{"name":"dummy","type":"function","inputs":[{"name":"txHash","type":"bytes32"}]}]`
-	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
-	if err != nil {
-		tw.logger.Sugar().Errorf("failed to parse ABI: %v", err)
-		return nil, fmt.Errorf("failed to parse ABI: %w", err)
-	}
-
-	// Validate method existence
-	method, ok := parsedABI.Methods["dummy"]
-	if !ok {
-		tw.logger.Sugar().Error("ABI method 'dummy' not found")
-		return nil, fmt.Errorf("ABI method 'dummy' not found")
-	}
-
-	// Ensure payload has at least 4 bytes for function selector
 	if len(t.Payload) < 4 {
 		tw.logger.Sugar().Error("payload too short")
 		return nil, fmt.Errorf("payload too short")
 	}
 
-	// Unpack arguments from payload, skipping first 4 bytes (function selector)
-	args, err := method.Inputs.Unpack(t.Payload[4:])
+	args, err := tw.method.Inputs.Unpack(t.Payload[4:])
 	if err != nil {
 		tw.logger.Sugar().Errorf("failed to unpack: %v", err)
 		return nil, fmt.Errorf("failed to unpack: %w", err)
@@ -124,12 +114,11 @@ func (tw *TaskWorker) HandleTask(t *performerV1.TaskRequest) (*performerV1.TaskR
 
 	tw.logger.Sugar().Infof("Extracted txHash: 0x%x", txHash)
 
-	// Generate SHA-256 hash of the original payload
 	hash := sha256.Sum256(t.Payload)
 	resultStr := hex.EncodeToString(hash[:])
 
 	tw.logger.Sugar().Infow("Response to task",
-		zap.Any("task_id", t.TaskId),
+		zap.ByteString("task_id", t.TaskId),
 		zap.String("response", resultStr),
 	)
 
@@ -139,21 +128,38 @@ func (tw *TaskWorker) HandleTask(t *performerV1.TaskRequest) (*performerV1.TaskR
 	}, nil
 }
 
+func equalBytes(a, b []byte) bool {
+	return len(a) == len(b) && string(a) == string(b)
+}
+
 func main() {
 	ctx := context.Background()
-	l, _ := zap.NewProduction()
 
-	w := NewTaskWorker(l)
-
-	pp, err := server.NewPonosPerformerWithRpcServer(&server.PonosPerformerConfig{
-		Port:    8080,
-		Timeout: 5 * time.Second,
-	}, w, l)
+	logger, err := zap.NewProduction()
 	if err != nil {
-		panic(fmt.Errorf("failed to create performer: %w", err))
+		panic(fmt.Errorf("failed to initialize logger: %w", err))
+	}
+	defer logger.Sync()
+
+	workerCfg := TaskWorkerConfig{
+		ABIJSON: dummyABIJSON,
+		Method:  "dummy",
 	}
 
-	if err := pp.Start(ctx); err != nil {
-		panic(err)
+	worker, err := NewTaskWorker(logger, workerCfg)
+	if err != nil {
+		logger.Fatal("failed to initialize TaskWorker", zap.Error(err))
+	}
+
+	ponos, err := server.NewPonosPerformerWithRpcServer(&server.PonosPerformerConfig{
+		Port:    defaultPort,
+		Timeout: defaultTimeout,
+	}, worker, logger)
+	if err != nil {
+		logger.Fatal("failed to create performer", zap.Error(err))
+	}
+
+	if err := ponos.Start(ctx); err != nil {
+		logger.Fatal("failed to start performer", zap.Error(err))
 	}
 }
