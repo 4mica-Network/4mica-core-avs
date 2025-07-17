@@ -36,11 +36,43 @@ func (tw *TaskWorker) ValidateTask(t *performerV1.TaskRequest) error {
 		zap.Any("task", t),
 	)
 
-	// ------------------------------------------------------------------------
-	// Implement your AVS task validation logic here
-	// ------------------------------------------------------------------------
-	// This is where the Perfomer will validate the task request data.
-	// E.g. the Perfomer may validate that the request params are well formed and adhere to a schema.
+	const abiJSON = `[{"name":"dummy","type":"function","inputs":[{"name":"txHash","type":"bytes32"}]}]`
+	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
+	if err != nil {
+		return fmt.Errorf("failed to parse ABI: %w", err)
+	}
+
+	method, ok := parsedABI.Methods["dummy"]
+	if !ok {
+		return fmt.Errorf("ABI method 'dummy' not found")
+	}
+
+	expectedSelector := method.ID
+	if len(t.Payload) < 4 || !strings.HasPrefix(hex.EncodeToString(t.Payload[:4]), hex.EncodeToString(expectedSelector)) {
+		return fmt.Errorf("invalid method selector")
+	}
+
+	encodedArgs := t.Payload[4:]
+
+	// Validate length
+	dummyInput := [32]byte{}
+	expectedArgEncoding, _ := method.Inputs.Pack(dummyInput)
+	if len(encodedArgs) != len(expectedArgEncoding) {
+		return fmt.Errorf("unexpected argument length: got %d, want %d", len(encodedArgs), len(expectedArgEncoding))
+	}
+
+	args, err := method.Inputs.Unpack(encodedArgs)
+	if err != nil {
+		return fmt.Errorf("failed to unpack arguments: %w", err)
+	}
+
+	if len(args) != 1 {
+		return fmt.Errorf("expected 1 argument, got %d", len(args))
+	}
+
+	if _, ok := args[0].([32]byte); !ok {
+		return fmt.Errorf("expected argument type [32]byte, got %T", args[0])
+	}
 
 	return nil
 }
@@ -48,23 +80,15 @@ func (tw *TaskWorker) ValidateTask(t *performerV1.TaskRequest) error {
 func (tw *TaskWorker) HandleTask(t *performerV1.TaskRequest) (*performerV1.TaskResponse, error) {
 	tw.logger.Sugar().Infow("Handling task",
 		zap.Any("task_id", t.TaskId),
-		zap.String("payload", string(t.Payload)),
+		zap.Binary("payload", t.Payload),
 	)
 
-	// ABI definition
-	const abiJSON = `[{"name":"dummy","type":"function","inputs":[{"type":"bytes32"}]}]`
+	// ABI definition: dummy(bytes32)
+	const abiJSON = `[{"name":"dummy","type":"function","inputs":[{"name":"txHash","type":"bytes32"}]}]`
 	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
 	if err != nil {
 		tw.logger.Sugar().Errorf("failed to parse ABI: %v", err)
 		return nil, fmt.Errorf("failed to parse ABI: %w", err)
-	}
-
-	// Decode hex-encoded payload string
-	payloadStr := string(t.Payload)
-	payload, err := hex.DecodeString(payloadStr)
-	if err != nil {
-		tw.logger.Sugar().Errorf("invalid hex string: %v", err)
-		return nil, fmt.Errorf("invalid hex string: %w", err)
 	}
 
 	// Validate method existence
@@ -74,14 +98,19 @@ func (tw *TaskWorker) HandleTask(t *performerV1.TaskRequest) (*performerV1.TaskR
 		return nil, fmt.Errorf("ABI method 'dummy' not found")
 	}
 
-	// Unpack the data
-	args, err := method.Inputs.Unpack(payload[4:]) // skip function selector (first 4 bytes)
+	// Ensure payload has at least 4 bytes for function selector
+	if len(t.Payload) < 4 {
+		tw.logger.Sugar().Error("payload too short")
+		return nil, fmt.Errorf("payload too short")
+	}
+
+	// Unpack arguments from payload, skipping first 4 bytes (function selector)
+	args, err := method.Inputs.Unpack(t.Payload[4:])
 	if err != nil {
 		tw.logger.Sugar().Errorf("failed to unpack: %v", err)
 		return nil, fmt.Errorf("failed to unpack: %w", err)
 	}
 
-	// Extract the bytes32 argument (tx hash)
 	if len(args) != 1 {
 		tw.logger.Sugar().Errorf("unexpected number of arguments: %d", len(args))
 		return nil, fmt.Errorf("unexpected number of arguments: %d", len(args))
@@ -93,10 +122,17 @@ func (tw *TaskWorker) HandleTask(t *performerV1.TaskRequest) (*performerV1.TaskR
 		return nil, fmt.Errorf("unexpected argument type: %T", args[0])
 	}
 
-	// For now, we just log and echo back the hash string
-	// Hash the txHash with SHA256
-	hash := sha256.Sum256(txHash[:])
+	tw.logger.Sugar().Infof("Extracted txHash: 0x%x", txHash)
+
+	// Generate SHA-256 hash of the original payload
+	hash := sha256.Sum256(t.Payload)
 	resultStr := hex.EncodeToString(hash[:])
+
+	tw.logger.Sugar().Infow("Response to task",
+		zap.Any("task_id", t.TaskId),
+		zap.String("response", resultStr),
+	)
+
 	return &performerV1.TaskResponse{
 		TaskId: t.TaskId,
 		Result: []byte(resultStr),
