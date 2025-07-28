@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -14,147 +16,172 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	defaultPort    = 8080
-	defaultTimeout = 5 * time.Second
-
-	dummyABIJSON = `[{"name":"dummy","type":"function","inputs":[{"name":"txHash","type":"bytes32"}]}]`
-)
-
-type TaskWorkerConfig struct {
-	ABIJSON string
-	Method  string
+type Config struct {
+	RPCServerURL string
 }
 
 type TaskWorker struct {
 	logger *zap.Logger
-	abi    abi.ABI
-	method abi.Method
+	config *Config
 }
 
-func NewTaskWorker(logger *zap.Logger, cfg TaskWorkerConfig) (*TaskWorker, error) {
-	parsedABI, err := abi.JSON(strings.NewReader(cfg.ABIJSON))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse ABI: %w", err)
-	}
-
-	method, ok := parsedABI.Methods[cfg.Method]
-	if !ok {
-		return nil, fmt.Errorf("ABI method %q not found", cfg.Method)
-	}
-
+func NewTaskWorker(logger *zap.Logger, config *Config) *TaskWorker {
 	return &TaskWorker{
 		logger: logger,
-		abi:    parsedABI,
-		method: method,
-	}, nil
+		config: config,
+	}
 }
 
 func (tw *TaskWorker) ValidateTask(t *performerV1.TaskRequest) error {
-	tw.logger.Sugar().Infow("Validating task", zap.ByteString("task_id", t.TaskId))
+	logger := tw.logger.Sugar()
+	tw.logger.Sugar().Infow("Validating task", zap.Any("task", t))
+	const (
+		jsonRPCVersion       = "2.0"
+		jsonContentType      = "application/json"
+		jsonRPCMethodName    = "core_issuePaymentCert"
+		expectedArgCount     = 1
+		expectedArgTypeSize  = 32
+		methodSelectorLength = 4
+	)
 
-	if len(t.Payload) < 4 {
-		return fmt.Errorf("payload too short to contain method selector")
-	}
-
-	if !equalBytes(t.Payload[:4], tw.method.ID) {
-		return fmt.Errorf("invalid method selector")
-	}
-
-	encodedArgs := t.Payload[4:]
-
-	expectedArgEncoding, _ := tw.method.Inputs.Pack([32]byte{})
-	if len(encodedArgs) != len(expectedArgEncoding) {
-		return fmt.Errorf("unexpected argument length: got %d, want %d", len(encodedArgs), len(expectedArgEncoding))
-	}
-
-	args, err := tw.method.Inputs.Unpack(encodedArgs)
+	parsedABI, err := tw.getParsedABI()
 	if err != nil {
-		return fmt.Errorf("failed to unpack arguments: %w", err)
+		logger.Errorw("Failed to parse ABI", "error", err)
+		return fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
-	if len(args) != 1 {
-		return fmt.Errorf("expected 1 argument, got %d", len(args))
+	method, ok := parsedABI.Methods["dummy"]
+	if !ok {
+		return fmt.Errorf("ABI method 'dummy' not found")
 	}
 
-	if _, ok := args[0].([32]byte); !ok {
-		return fmt.Errorf("expected argument type [32]byte, got %T", args[0])
+	if len(t.Payload) < methodSelectorLength {
+		logger.Errorw("Payload too short", "min_required", methodSelectorLength, "actual", len(t.Payload))
+		return fmt.Errorf("payload too short: expected at least %d bytes", methodSelectorLength)
+	}
+
+	args, err := method.Inputs.Unpack(t.Payload[methodSelectorLength:])
+	if err != nil {
+		logger.Errorw("Failed to unpack method arguments", "error", err)
+		return fmt.Errorf("failed to unpack method arguments: %w", err)
+	}
+
+	if len(args) != expectedArgCount {
+		logger.Errorw("Unexpected number of arguments", "expected", expectedArgCount, "actual", len(args))
+		return fmt.Errorf("unexpected number of arguments: expected %d, got %d", expectedArgCount, len(args))
 	}
 
 	return nil
 }
 
 func (tw *TaskWorker) HandleTask(t *performerV1.TaskRequest) (*performerV1.TaskResponse, error) {
-	tw.logger.Sugar().Infow("Handling task",
-		zap.ByteString("task_id", t.TaskId),
-		zap.Binary("payload", t.Payload),
+	const (
+		jsonRPCVersion       = "2.0"
+		jsonContentType      = "application/json"
+		jsonRPCMethodName    = "core_issuePaymentCert"
+		expectedArgCount     = 1
+		expectedArgTypeSize  = 32
+		methodSelectorLength = 4
 	)
 
-	if len(t.Payload) < 4 {
-		tw.logger.Sugar().Error("payload too short")
-		return nil, fmt.Errorf("payload too short")
-	}
+	logger := tw.logger.Sugar()
+	logger.Infow("Handling task", "task_id", t.TaskId, "payload_length", len(t.Payload))
 
-	args, err := tw.method.Inputs.Unpack(t.Payload[4:])
+	parsedABI, err := tw.getParsedABI()
 	if err != nil {
-		tw.logger.Sugar().Errorf("failed to unpack: %v", err)
-		return nil, fmt.Errorf("failed to unpack: %w", err)
+		logger.Errorw("Failed to parse ABI", "error", err)
+		return nil, fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
-	if len(args) != 1 {
-		tw.logger.Sugar().Errorf("unexpected number of arguments: %d", len(args))
-		return nil, fmt.Errorf("unexpected number of arguments: %d", len(args))
-	}
-
-	txHash, ok := args[0].([32]byte)
+	method, ok := parsedABI.Methods[jsonRPCMethodName]
 	if !ok {
-		tw.logger.Sugar().Errorf("unexpected argument type: %T", args[0])
-		return nil, fmt.Errorf("unexpected argument type: %T", args[0])
+		logger.Errorw("ABI method not found", "method", jsonRPCMethodName)
+		return nil, fmt.Errorf("ABI method '%s' not found", jsonRPCMethodName)
 	}
 
-	tw.logger.Sugar().Infof("Extracted txHash: 0x%x", txHash)
+	if len(t.Payload) < methodSelectorLength {
+		logger.Errorw("Payload too short", "min_required", methodSelectorLength, "actual", len(t.Payload))
+		return nil, fmt.Errorf("payload too short: expected at least %d bytes", methodSelectorLength)
+	}
 
-	hash := sha256.Sum256(t.Payload)
-	resultStr := hex.EncodeToString(hash[:])
+	args, err := method.Inputs.Unpack(t.Payload[methodSelectorLength:])
+	if err != nil {
+		logger.Errorw("Failed to unpack method arguments", "error", err)
+		return nil, fmt.Errorf("failed to unpack method arguments: %w", err)
+	}
 
-	tw.logger.Sugar().Infow("Response to task",
-		zap.ByteString("task_id", t.TaskId),
-		zap.String("response", resultStr),
-	)
+	if len(args) != expectedArgCount {
+		logger.Errorw("Unexpected number of arguments", "expected", expectedArgCount, "actual", len(args))
+		return nil, fmt.Errorf("unexpected number of arguments: expected %d, got %d", expectedArgCount, len(args))
+	}
+
+	txHashArg := args[0]
+	txHash, valid := txHashArg.([expectedArgTypeSize]byte)
+	if !valid {
+		logger.Errorw("Invalid argument type for txHash", "expected", fmt.Sprintf("[%d]byte", expectedArgTypeSize), "actual", fmt.Sprintf("%T", txHashArg))
+		return nil, fmt.Errorf("unexpected argument type: expected [%d]byte, got %T", expectedArgTypeSize, txHashArg)
+	}
+
+	jsonPayload := map[string]interface{}{
+		"jsonrpc": jsonRPCVersion,
+		"method":  jsonRPCMethodName,
+		"params":  []interface{}{fmt.Sprintf("0x%x", txHash)},
+		"id":      1,
+	}
+
+	jsonData, err := json.Marshal(jsonPayload)
+	if err != nil {
+		logger.Errorw("Failed to marshal JSON payload", "error", err)
+		return nil, fmt.Errorf("failed to marshal JSON-RPC payload: %w", err)
+	}
+
+	resp, err := http.Post(tw.config.RPCServerURL, jsonContentType, bytes.NewBuffer(jsonData))
+	if err != nil {
+		logger.Errorw("HTTP request failed", "url", tw.config.RPCServerURL, "error", err)
+		return nil, fmt.Errorf("failed to send POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Errorw("Failed to read response body", "error", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	logger.Infow("Received response from RPC server", "status_code", resp.StatusCode, "body", string(body))
 
 	return &performerV1.TaskResponse{
 		TaskId: t.TaskId,
-		Result: []byte(resultStr),
+		Result: body,
 	}, nil
 }
 
-func equalBytes(a, b []byte) bool {
-	return len(a) == len(b) && string(a) == string(b)
+// getParsedABI returns the parsed ABI for the contract. Consider caching this at init.
+func (tw *TaskWorker) getParsedABI() (abi.ABI, error) {
+	const contractABI = `
+	[{
+		"name": "core_issuePaymentCert",
+		"type": "function",
+		"inputs": [{"name": "txHash", "type": "bytes32"}]
+	}]
+	`
+	return abi.JSON(strings.NewReader(contractABI))
 }
 
 func main() {
 	ctx := context.Background()
+	l, _ := zap.NewProduction()
 
-	logger, err := zap.NewProduction()
-	if err != nil {
-		panic(fmt.Errorf("failed to initialize logger: %w", err))
-	}
-	defer logger.Sync()
-
-	workerCfg := TaskWorkerConfig{
-		ABIJSON: dummyABIJSON,
-		Method:  "dummy",
+	config := &Config{
+		RPCServerURL: "http://localhost:3000",
 	}
 
-	worker, err := NewTaskWorker(logger, workerCfg)
-	if err != nil {
-		logger.Fatal("failed to initialize TaskWorker", zap.Error(err))
-	}
+	w := NewTaskWorker(l, config)
 
-	ponos, err := server.NewPonosPerformerWithRpcServer(&server.PonosPerformerConfig{
-		Port:    defaultPort,
-		Timeout: defaultTimeout,
-	}, worker, logger)
+	pp, err := server.NewPonosPerformerWithRpcServer(&server.PonosPerformerConfig{
+		Port:    8080,
+		Timeout: 5 * time.Second,
+	}, w, l)
 	if err != nil {
 		logger.Fatal("failed to create performer", zap.Error(err))
 	}
