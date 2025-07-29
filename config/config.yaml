@@ -1,10 +1,10 @@
-version: 0.0.2
 config:
     project:
-        name: 4mica-core-avs
-        version: 0.1.0
         context: devnet
+        name: 4mica-core-avs
         project_uuid: b60c60af-c2e7-4bc2-9483-7e5e01ebe5ac
         telemetry_enabled: false
         templateBaseUrl: https://github.com/Layr-Labs/hourglass-avs-template
         templateVersion: v0.0.14
+        version: 0.1.0
+version: 0.0.2
