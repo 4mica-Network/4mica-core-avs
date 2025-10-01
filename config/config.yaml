@@ -5,6 +5,6 @@ config:
         project_uuid: b60c60af-c2e7-4bc2-9483-7e5e01ebe5ac
         telemetry_enabled: false
         templateBaseUrl: https://github.com/Layr-Labs/hourglass-avs-template
-        templateVersion: v0.0.14
+        templateVersion: v0.0.18
         version: 0.1.0
 version: 0.0.2

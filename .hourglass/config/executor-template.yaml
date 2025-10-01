@@ -6,25 +6,27 @@
 {{- $avsRegistrar = $contract.address }}
 {{- end }}
 {{- end }}
-{{- range $i, $contract := (ds "ctx").context.deployed_l2_contracts }}
-{{- if eq $contract.name "taskMailbox" }}
-{{- $taskMailboxL2 = $contract.address }}
-{{- end }}
-{{- end }}
+{{- $taskMailboxL2 := (ds "ctx").context.eigenlayer.l2.task_mailbox }}
 grpcPort: 9090
 performerNetworkName: "hourglass-local_hourglass-network"
 operator:
   {{- $executor := index (ds "ctx").executor.operators 0 }}
   address: "{{ $executor.address }}"
-  {{- range $i, $exec := (ds "ctx").context.operators }}
-  {{- if eq $executor.address $exec.address }}
-  operatorPrivateKey: "{{ $exec.ecdsa_key }}"
+  {{- $aggSetID := (ds "ctx").executor.operatorSetId }}
+  {{- range $i, $op := (ds "ctx").context.operators }}
+    {{- if eq $executor.address $op.address }}
+      {{- range $j, $ks := $op.keystores }}
+        {{- if eq $ks.operatorSet $aggSetID }}
+  operatorPrivateKey:
+    privateKey: "{{ $op.ecdsa_key }}"
   signingKeys:
     bls:
       keystore: |
-{{ toJSONPretty " " $exec.bls_key_contents | indent 8}}
-      password: "{{ $exec.bls_keystore_password }}"
-  {{- end}}
+{{ toJSONPretty " " $ks.bls_key_contents | indent 8 }}
+      password: "{{ $ks.bls_keystore_password }}"
+        {{- end }}
+      {{- end }}
+    {{- end }}
   {{- end }}
 l1Chain:
   chainId: "{{ (ds "ctx").context.chains.l1.chain_id }}"
