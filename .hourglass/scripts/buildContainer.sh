@@ -1,53 +1,41 @@
 #!/usr/bin/env bash
 set -e
 
-# Parse command line arguments
 VERSION=""
 IMAGE=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --tag)
-      VERSION="$2"
-      shift 2
-      ;;
+      VERSION="$2"; shift 2;;
     --image)
-      IMAGE="$2"
-      shift 2
-      ;;
+      IMAGE="$2"; shift 2;;
     *)
-      echo "Unknown option $1" >&2
-      exit 1
-      ;;
+      echo "Unknown option $1" >&2; exit 1;;
   esac
 done
 
-# Ensure required arguments are provided
 if [ -z "$IMAGE" ]; then
   echo "Error: --image is required" >&2
   exit 1
 fi
 
-# Construct image name with tag if provided
 if [ -n "$VERSION" ]; then
   fullImage="${IMAGE}:${VERSION}"
 else
-  fullImage="${IMAGE}"
+  fullImage="${IMAGE}:latest"
 fi
 
-echo "Building container: $fullImage" >&2
+echo "Pulling performer image: $fullImage" >&2
+docker pull "$fullImage" >&2
 
-# Simple docker build
-docker build -t "$fullImage" . >&2
+IMAGE_REGISTRY=$(echo "$IMAGE" | awk -F/ '{print $1}')
+IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$fullImage" | awk -F@ '{print $2}')
 
-# Get the image ID
-IMAGE_ID=$(docker images --format "table {{.ID}}" --no-trunc "$fullImage" | tail -1)
-
-echo "Built container: $fullImage" >&2
-echo "Image ID: $IMAGE_ID" >&2
-
-# Output build info as JSON to stdout
 jq -n \
-  --arg image "$IMAGE" \
+  --arg image "$fullImage" \
   --arg image_id "$IMAGE_ID" \
-  '{image: $image, image_id: $image_id}'
+  --arg registry "$IMAGE_REGISTRY" \
+  --arg digest "$IMAGE_DIGEST" \
+  '{image: $image, image_id: $image_id, registry: $registry, digest: $digest}'
+

@@ -1,4 +1,4 @@
 container:
-  registry: "" # optional
-  image: "my-avs"
+  registry: "ghcr.io/4mica-network"
+  image: "4mica-core"
   version: "latest"

@@ -3,6 +3,7 @@ module github.com/Layr-Labs/hourglass-monorepo/hourglass-operator
 go 1.23.6
 
 require (
+	github.com/Layr-Labs/hourglass-avs-template v0.0.29
 	github.com/Layr-Labs/hourglass-monorepo/ponos v0.0.0-20250930202122-e5817a089d7a
 	github.com/Layr-Labs/protocol-apis v1.17.0
 	github.com/ethereum/go-ethereum v1.15.11
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/Layr-Labs/hourglass-avs-template v0.0.29 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
@@ -30,6 +30,8 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
+	github.com/olekukonko/errors v1.1.0 // indirect
+	github.com/olekukonko/ll v0.1.1 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect

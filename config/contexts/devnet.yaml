@@ -1,5 +1,5 @@
 # Devnet context to be used for local deployments against Anvil chain
-version: 0.0.8
+version: 0.1.0
 context:
   # Name of the context
   name: "devnet"
@@ -9,14 +9,14 @@ context:
       chain_id: 31337
       rpc_url: "http://localhost:8545"
       fork:
-        block: 8713384
+        block: 8836193
         url: ""
         block_time: 3
     l2:
       chain_id: 31338
       rpc_url: "http://localhost:9545"
       fork:
-        block: 28069764
+        block: 28820370
         url: ""
         block_time: 3
   # Stake Root Transporter configuration
@@ -55,10 +55,6 @@ context:
   operators:
     - address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906"
       ecdsa_key: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6" # Anvil Private Key 3
-      ecdsa_keystore_path: "keystores/operator1.ecdsa.keystore.json"
-      ecdsa_keystore_password: "testpass"
-      bls_keystore_path: "keystores/operator1.bls.keystore.json"
-      bls_keystore_password: "testpass"
       allocations:
         - strategy_address: "0x8b29d91e67b013e855EaFe0ad704aC4Ab086a574"
           name: "stETH_Strategy"
@@ -68,12 +64,21 @@ context:
               allocation_in_wads: "500000000000000000" # 5e17 i.e 50% of max allocation
             - operator_set: "1"
               allocation_in_wads: "500000000000000000" # 5e17 i.e 50% of max allocation
+      keystores:
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 0
+          ecdsa_keystore_path: keystores/operator1.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator1.bls.keystore.json
+          bls_keystore_password: testpass
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 1
+          ecdsa_keystore_path: keystores/operator1.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator1.bls.keystore.json
+          bls_keystore_password: testpass
     - address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"
       ecdsa_key: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a" # Anvil Private Key 4
-      ecdsa_keystore_path: "keystores/operator2.ecdsa.keystore.json"
-      ecdsa_keystore_password: "testpass"
-      bls_keystore_path: "keystores/operator2.bls.keystore.json"
-      bls_keystore_password: "testpass"
       allocations:
         - strategy_address: "0x8b29d91e67b013e855EaFe0ad704aC4Ab086a574"
           name: "stETH_Strategy"
@@ -83,24 +88,64 @@ context:
               allocation_in_wads: "500000000000000000" # 5e17 i.e 50% of max allocation
             - operator_set: "1"
               allocation_in_wads: "500000000000000000" # 5e17 i.e 50% of max allocation
+      keystores:
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 0
+          ecdsa_keystore_path: keystores/operator2.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator2.bls.keystore.json
+          bls_keystore_password: testpass
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 1
+          ecdsa_keystore_path: keystores/operator2.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator2.bls.keystore.json
+          bls_keystore_password: testpass
     - address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"
       ecdsa_key: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba" # Anvil Private Key 5
-      ecdsa_keystore_path: "keystores/operator3.ecdsa.keystore.json"
-      ecdsa_keystore_password: "testpass"
-      bls_keystore_path: "keystores/operator3.bls.keystore.json"
-      bls_keystore_password: "testpass"
+      keystores:
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 0
+          ecdsa_keystore_path: keystores/operator3.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator3.bls.keystore.json
+          bls_keystore_password: testpass
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 1
+          ecdsa_keystore_path: keystores/operator3.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator3.bls.keystore.json
+          bls_keystore_password: testpass
     - address: "0x976EA74026E726554dB657fA54763abd0C3a0aa9"
       ecdsa_key: "0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e" # Anvil Private Key 6
-      ecdsa_keystore_path: "keystores/operator4.ecdsa.keystore.json"
-      ecdsa_keystore_password: "testpass"
-      bls_keystore_path: "keystores/operator4.bls.keystore.json"
-      bls_keystore_password: "testpass"
+      keystores:
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 0
+          ecdsa_keystore_path: keystores/operator4.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator4.bls.keystore.json
+          bls_keystore_password: testpass
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 1
+          ecdsa_keystore_path: keystores/operator4.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator4.bls.keystore.json
+          bls_keystore_password: testpass
     - address: "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955"
       ecdsa_key: "0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356" # Anvil Private Key 7
-      ecdsa_keystore_path: "keystores/operator5.ecdsa.keystore.json"
-      ecdsa_keystore_password: "testpass"
-      bls_keystore_path: "keystores/operator5.bls.keystore.json"
-      bls_keystore_password: "testpass"
+      keystores:
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 0
+          ecdsa_keystore_path: keystores/operator5.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator5.bls.keystore.json
+          bls_keystore_password: testpass
+        - avs: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+          operatorSet: 1
+          ecdsa_keystore_path: keystores/operator5.ecdsa.keystore.json
+          ecdsa_keystore_password: testpass
+          bls_keystore_path: keystores/operator5.bls.keystore.json
+          bls_keystore_password: testpass
   # AVS configuration
   avs:
     address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
@@ -113,15 +158,17 @@ context:
       allocation_manager: "0x42583067658071247ec8CE0A516A58f682002d07"
       delegation_manager: "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"
       strategy_manager: "0x2E3D6c0744b10eb0A4e6F679F71554a39Ec47a5D"
-      bn254_table_calculator: "0xc2c0bc13571aC5115709C332dc7AE666606b08E8"
-      cross_chain_registry: "0xe850D8A178777b483D37fD492a476e3E6004C816"
-      key_registrar: "0x78De554Ac8DfF368e3CAa73B3Df8AccCfD92928A"
+      bn254_table_calculator: 0xa19E3B00cf4aC46B5e6dc0Bbb0Fb0c86D0D65603
+      cross_chain_registry: 0x287381B1570d9048c4B4C7EC94d21dDb8Aa1352a
+      key_registrar: 0xA4dB30D08d8bbcA00D40600bee9F029984dB162a
       release_manager: "0xd9Cb89F1993292dEC2F973934bC63B0f2A702776"
-      operator_table_updater: "0xE12C4cebd680a917271145eDbFB091B1BdEFD74D"
+      operator_table_updater: 0xB02A15c6Bd0882b35e9936A9579f35FB26E11476
+      ecdsa_table_calculator: 0xaCB5DE6aa94a1908E6FA577C2ade65065333B450
     l2:
-      bn254_certificate_verifier: "0x998535833f3feE44ce720440E735554699f728a5"
-      operator_table_updater: "0xE12C4cebd680a917271145eDbFB091B1BdEFD74D"
-      ecdsa_certificate_verifier: "0xAD2F58A551bD0e77fa20b5531dA96eF440C392BF"
+      bn254_certificate_verifier: 0xff58A373c18268F483C1F5cA03Cf885c0C43373a
+      operator_table_updater: 0xB02A15c6Bd0882b35e9936A9579f35FB26E11476
+      ecdsa_certificate_verifier: 0xb3Cd1A457dEa9A9A6F6406c6419B1c326670A96F
+      task_mailbox: 0xB99CC53e8db7018f557606C2a5B066527bF96b26
   # L1 Contracts deployed on `devnet start`
   deployed_l1_contracts:
     - abi: .devkit/contracts/out/ProxyAdmin.sol/ProxyAdmin.json
@@ -173,8 +220,8 @@ context:
       payload: 0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d6578656375746f723a3930393000000000000000000000000000000000000000
   # Release artifact
   artifact:
-    artifactId: ""
-    component: ""
+    artifactId: sha256:43427cbac8c1cd5c67f7cfc2945d455b9d069baa238afae91f7bab71ff43aaee
+    component: 4mica-core-avs-performer
     digest: ""
     registry: ""
     version: ""

@@ -47,10 +47,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# if image name is not provided , return error
 if [ -z "$IMAGE_NAME" ]; then
-  echo "Error: Image name is required in .devkit/scripts/build" >&2
-  exit 1
+  IMAGE_NAME="ghcr.io/4mica-network/4mica-core"
+fi
+
+if [ -z "$VERSION" ]; then
+  VERSION="latest"
 fi
 
 # suffix the image name with -performer

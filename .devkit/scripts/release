@@ -8,7 +8,6 @@ source "$( dirname "${BASH_SOURCE[0]}" )/helpers/helpers.sh"
 ensureDocker
 ensureJq
 ensureYq
-ensureGomplate
 
 # Pass all arguments to the release script
 ./.hourglass/scripts/release.sh "$@"

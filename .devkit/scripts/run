@@ -18,7 +18,6 @@ CONTEXT="$1"
 # Check for required tools
 ensureJq
 ensureYq
-ensureGomplate
 
 ENVIRONMENT=$(echo "$CONTEXT" | jq -r '.context.name')
 if [ "$ENVIRONMENT" == "null" ] || [ -z "$ENVIRONMENT" ]; then
@@ -91,10 +90,10 @@ if [ "$deployedL1Contracts" == "null" ] || [ -z "$deployedL1Contracts" ] || [ "$
     exit 1
 fi
 
-echo $CONTEXT | gomplate -f .hourglass/config/aggregator-template.yaml -d 'ctx=stdin:/?type=application/json' > .hourglass/config/aggregator.yaml
-echo $CONTEXT | gomplate -f .hourglass/config/executor-template.yaml -d 'ctx=stdin:/?type=application/json' > .hourglass/config/executor.yaml
-
 # Run the Aggregator and Executor in docker containers
+export IMAGE_NAME="ghcr.io/4mica-network/4mica-core"
+export IMAGE_TAG="$VERSION"
+
 ./.hourglass/scripts/run.sh
 
 log "AVS components started successfully." 

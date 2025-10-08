@@ -45,7 +45,7 @@ l1Chain:
   rpcUrl: "http://host.docker.internal:8545"
 avsPerformers:
   - image:
-      repository: "my-avs"
+      repository: "ghcr.io/4mica-network/4mica-core"
       tag: "latest"
     processType: "server"
     avsAddress: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
