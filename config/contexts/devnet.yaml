@@ -1,5 +1,5 @@
 # Devnet context to be used for local deployments against Anvil chain
-version: 0.1.0
+version: 0.1.1
 context:
   # Name of the context
   name: "devnet"
@@ -9,14 +9,14 @@ context:
       chain_id: 31337
       rpc_url: "http://localhost:8545"
       fork:
-        block: 8836193
+        block: 9259079
         url: ""
         block_time: 3
     l2:
       chain_id: 31338
       rpc_url: "http://localhost:9545"
       fork:
-        block: 28820370
+        block: 31408197
         url: ""
         block_time: 3
   # Stake Root Transporter configuration

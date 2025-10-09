@@ -10,9 +10,9 @@ ensureForge
 ensureDocker
 
 # Parse command line arguments
-IMAGE_NAME=""
-VERSION=""
-LANGUAGE=""
+IMAGE_NAME="ghcr.io/4mica-network/4mica-core"
+VERSION="latest"
+LANGUAGE="rust"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -47,12 +47,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# if image name is not provided , return error
 if [ -z "$IMAGE_NAME" ]; then
-  IMAGE_NAME="ghcr.io/4mica-network/4mica-core"
-fi
-
-if [ -z "$VERSION" ]; then
-  VERSION="latest"
+  echo "Error: Image name is required in .devkit/scripts/build" >&2
+  exit 1
 fi
 
 # suffix the image name with -performer
@@ -65,15 +63,27 @@ log "Building contracts..."
 log "Building AVS performer..."
 
 # Build the container and capture the JSON output
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )"
+DOCKERFILE="$ROOT_DIR/4mica-core/Dockerfile"
+DOCKER_CONTEXT="$ROOT_DIR/4mica-core"
 if [ -n "$VERSION" ]; then
-  BUILD_OUTPUT=$(BUILD_CONTAINER=true ./.hourglass/scripts/build.sh --image "$IMAGE_NAME" --tag "$VERSION" 2>&1)
+  BUILD_OUTPUT=$(BUILD_CONTAINER=true "$ROOT_DIR/.hourglass/scripts/build.sh" \
+    --image "$IMAGE_NAME" \
+    --tag "$VERSION" \
+    --dockerfile "$DOCKERFILE" \
+    --context "$DOCKER_CONTEXT" 2>&1)
 else
-  BUILD_OUTPUT=$(BUILD_CONTAINER=true ./.hourglass/scripts/build.sh --image "$IMAGE_NAME" 2>&1)
+  BUILD_OUTPUT=$(BUILD_CONTAINER=true "$ROOT_DIR/.hourglass/scripts/build.sh" \
+    --image "$IMAGE_NAME" \
+    --dockerfile "$DOCKERFILE" \
+    --context "$DOCKER_CONTEXT" 2>&1)
 fi
 
+
+
 # Debug: Show the captured output
-echo "DEBUG: Full build output:" >&2
-echo "$BUILD_OUTPUT" >&2
+echo "DEBUG: Full build output:" 
+echo "$BUILD_OUTPUT" 
 
 # Extract the JSON from the build output (look for lines starting with { and ending with })
 BUILD_JSON=$(echo "$BUILD_OUTPUT" | awk '/^{/,/^}/' | tr -d '\n')
