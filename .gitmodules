@@ -5,3 +5,6 @@
 	path = .devkit/contracts/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware
 	branch = dev
+[submodule "4mica-core"]
+	path = 4mica-core
+	url = https://github.com/4mica-network/4mica-core
